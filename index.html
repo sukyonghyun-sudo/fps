@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FPS Zombie - Parking Garage</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+#game-container { position: relative; width: 100%; height: 100%; }
+#game-canvas { display: block; width: 100%; height: 100%; }
+
+/* Crosshair */
+#crosshair {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none; z-index: 10;
+}
+
+/* Instructions */
+#instructions {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff; font-family: 'Segoe UI', sans-serif;
+  text-align: center; pointer-events: none; z-index: 20;
+  background: rgba(0,0,0,0.6); padding: 20px 30px; border-radius: 8px;
+}
+#instructions.hidden { display: none; }
+
+/* Ammo */
+#ammo-display {
+  position: absolute; bottom: 20px; right: 20px;
+  color: #fff; font: bold 22px/1 'Courier New', monospace;
+  text-shadow: 0 0 6px rgba(0,0,0,0.8); z-index: 10;
+}
+#ammo-display.hidden { display: none; }
+#ammo-display.low { color: #ff4444; }
+
+/* Reload */
+#reload-indicator {
+  position: absolute; bottom: 50px; right: 20px;
+  color: #ffcc00; font: bold 14px 'Segoe UI', sans-serif;
+  text-shadow: 0 0 6px rgba(0,0,0,0.8); z-index: 10;
+}
+#reload-indicator.hidden { display: none; }
+
+/* HP Bar */
+#hp-bar {
+  position: absolute; bottom: 20px; left: 20px;
+  width: 200px; height: 20px; background: rgba(0,0,0,0.5);
+  border: 1px solid rgba(255,255,255,0.2); border-radius: 3px;
+  z-index: 10; overflow: hidden;
+}
+#hp-fill {
+  height: 100%; width: 100%;
+  background: linear-gradient(90deg, #33cc33, #66ff66);
+  transition: width 0.3s;
+}
+#hp-text {
+  position: absolute; bottom: 44px; left: 20px;
+  color: #fff; font: bold 14px 'Segoe UI', sans-serif;
+  text-shadow: 0 0 4px rgba(0,0,0,0.8); z-index: 10;
+}
+
+/* Kill Count */
+#kill-count {
+  position: absolute; top: 20px; right: 20px;
+  color: #fff; font: bold 18px 'Courier New', monospace;
+  text-shadow: 0 0 6px rgba(0,0,0,0.8); z-index: 10;
+}
+
+/* Damage Flash */
+#damage-flash {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  background: radial-gradient(ellipse at center, transparent 30%, rgba(255,0,0,0.4) 100%);
+  pointer-events: none; z-index: 15; opacity: 0;
+  transition: opacity 0.1s;
+}
+#damage-flash.active { opacity: 1; }
+
+/* Game Over */
+#game-over {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff; font-family: 'Segoe UI', sans-serif;
+  text-align: center; z-index: 30;
+  background: rgba(0,0,0,0.85); padding: 30px 40px; border-radius: 10px;
+}
+#game-over.hidden { display: none; }
+#game-over h1 { font-size: 36px; color: #ff3333; margin-bottom: 10px; }
+#game-over-kills { font-size: 24px; margin-bottom: 8px; }
+#my-best { font-size: 14px; color: #aaa; margin-bottom: 16px; }
+#leaderboard-list {
+  list-style: none; padding: 0; margin: 0 0 16px 0;
+  font-size: 14px; color: #ccc; text-align: left;
+}
+#leaderboard-list li { padding: 3px 0; display: flex; gap: 10px; }
+.rank-num { color: #ffcc00; min-width: 30px; }
+.rank-name { flex: 1; }
+.rank-score { color: #88ff88; }
+#restart-btn {
+  padding: 10px 30px; font-size: 16px; cursor: pointer;
+  background: #ff4444; color: #fff; border: none; border-radius: 5px;
+  font-family: 'Segoe UI', sans-serif; font-weight: bold;
+}
+#restart-btn:hover { background: #ff6666; }
+
+/* Loading */
+#loading-status {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  color: #aaa; font: 14px 'Segoe UI', sans-serif;
+  z-index: 25; text-align: center;
+}
+#loading-status.hidden { display: none; }
+#loading-status.success { color: #66ff66; }
+#loading-status.error { color: #ff4444; }
+</style>
+</head>
+<body>
+<div id="game-container">
+  <canvas id="game-canvas"></canvas>
+  <div id="crosshair"></div>
+  <div id="instructions">
+    클릭하여 시작<br>
+    <small>WASD 이동 | 마우스 시점 | 좌클릭 사격 | R 재장전 | Space 점프 | Shift 달리기</small>
+  </div>
+  <div id="ammo-display" class="hidden">30 / ∞</div>
+  <div id="reload-indicator" class="hidden">RELOADING...</div>
+  <div id="hp-bar"><div id="hp-fill"></div></div>
+  <div id="hp-text">100</div>
+  <div id="kill-count">KILLS: 0</div>
+  <div id="damage-flash"></div>
+  <div id="game-over" class="hidden">
+    <h1>GAME OVER</h1>
+    <div id="game-over-kills"></div>
+    <div id="my-best"></div>
+    <ul id="leaderboard-list"></ul>
+    <button id="restart-btn">RESTART</button>
+  </div>
+  <div id="loading-status">로딩 중...</div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module" src="game.js"></script>
+</body>
+</html>
